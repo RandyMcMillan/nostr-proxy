@@ -1,8 +1,6 @@
-SHELL := /bin/bash
-PWD 									?= pwd_unknown
-THIS_FILE								:= $(lastword $(MAKEFILE_LIST))
-export THIS_FILE
-TIME									:= $(shell date +%s)
+SHELL                                   := /bin/bash
+PWD                                     ?= pwd_unknown
+TIME                                    := $(shell date +%s)
 export TIME
 
 OS                                      :=$(shell uname -s)
@@ -32,6 +30,9 @@ export PYTHON
 PYTHON2                                 := $(shell which python2)
 export PYTHON2
 PYTHON3                                 := $(shell which python3)
+ifeq ($(PYTHON3),)
+PYTHON3                                 :=$(shell which python)
+endif
 export PYTHON3
 
 PIP                                     := $(notdir $(shell which pip))
@@ -48,165 +49,162 @@ export PIP
 export PIP3
 endif
 
-PYTHON_VENV                             := $(shell python -c "import sys; sys.stdout.write('1') if hasattr(sys, 'base_prefix') else sys.stdout.write('0')")
-PYTHON3_VENV                            := $(shell python3 -c "import sys; sys.stdout.write('1') if hasattr(sys, 'real_prefix') else sys.stdout.write('0')")
+#detect python
+PYTHON_ENV                              = $(shell python -c "import sys; sys.stdout.write('1')  if hasattr(sys, 'base_prefix') else sys.stdout.write('0')" 2>/dev/null)
+#detect python3
+PYTHON3_ENV                             = $(shell python3 -c "import sys; sys.stdout.write('1') if hasattr(sys, 'base_prefix') else sys.stdout.write('0')")
+export PYTHON_ENV
+export PYTHON3_ENV
+
+ifeq ($(PYTHON_ENV),1)
+#likely in virtualenv
+PYTHON_VENV                             := $(shell python -c "import sys; sys.stdout.write('1') if sys.prefix != sys.base_prefix else sys.stdout.write('0')" 2>/dev/null)
+endif
 export PYTHON_VENV
-export PYTHON3_VENV
-ifeq ($(PYTHON_VENV),0)
-USER_FLAG:=--user
+
+ifeq ($(PYTHON_VENV),1)
+PYTHON3_VENV                            := $(shell python3 -c "import sys; sys.stdout.write('1') if sys.prefix != sys.base_prefix else sys.stdout.write('0')")
 else
-USER_FLAG:=	
+PYTHON_VENV                             :=$(PYTHON_ENV)
+PYTHON3_VENV                            :=$(PYTHON3_ENV)
+endif
+export PYTHON3_VENV
+
+ifeq ($(PYTHON_VENV),0)
+USER_FLAG                               :=--user
+else
+USER_FLAG                               :=
 endif
 
 ifeq ($(project),)
-PROJECT_NAME							:= $(notdir $(PWD))
+PROJECT_NAME                            := $(notdir $(PWD))
 else
-PROJECT_NAME							:= $(project)
+PROJECT_NAME                            := $(project)
 endif
 export PROJECT_NAME
-TWITTER_API=$(PWD)/TwitterAPI
-export TWITTER_API
-ifeq ($(port),)
-PORT									:= 0
-else
-PORT									:= $(port)
-endif
-export PORT
 
-#GIT CONFIG
-GIT_USER_NAME							:= $(shell git config user.name || echo $(PROJECT_NAME))
+GIT_USER_NAME                           := $(shell git config user.name || echo $(PROJECT_NAME))
 export GIT_USER_NAME
-GH_USER_NAME							:= $(shell git config user.name || echo $(PROJECT_NAME))
-#MIRRORS
-GH_USER_REPO							:= $(GH_USER_NAME).github.io
-GH_USER_SPECIAL_REPO					:= $(GH_USER_NAME)
-KB_USER_REPO							:= $(GH_USER_NAME).keybase.pub
-#GITHUB RUNNER CONFIGS
+GH_USER_NAME                            := $(shell git config user.name || echo $(PROJECT_NAME))
 ifneq ($(ghuser),)
 GH_USER_NAME := $(ghuser)
-GH_USER_SPECIAL_REPO := $(ghuser)/$(ghuser)
-endif
-ifneq ($(kbuser),)
-KB_USER_NAME := $(kbuser)
-KB_USER_REPO := $(kbuser).keybase.pub
 endif
 export GIT_USER_NAME
-export GH_USER_REPO
-export GH_USER_SPECIAL_REPO
-export KB_USER_REPO
-ifneq ($(verbose),false)
-VERBOSE                                 := -v
-else
-VERBOSE                                 :=
-endif
-ifeq ($(reuse),true)
-REUSE                                   := -r
-else
-REUSE                                   :=
-endif
-ifeq ($(bind),true)
-BIND                                   := -b
-else
-BIND                                    :=
-endif
 
-GIT_USER_EMAIL							:= $(shell git config user.email || echo $(PROJECT_NAME))
+GIT_USER_EMAIL                          := $(shell git config user.email || echo $(PROJECT_NAME))
 export GIT_USER_EMAIL
-GIT_SERVER								:= https://github.com
+GIT_SERVER                              := https://github.com
 export GIT_SERVER
-GIT_SSH_SERVER							:= git@github.com
+GIT_SSH_SERVER                          := git@github.com
 export GIT_SSH_SERVER
-GIT_PROFILE								:= $(shell git config user.name || echo $(PROJECT_NAME))
+GIT_PROFILE                             := $(shell git config user.name || echo $(PROJECT_NAME))
 export GIT_PROFILE
-GIT_BRANCH								:= $(shell git rev-parse --abbrev-ref HEAD 2>/dev/null || echo $(PROJECT_NAME))
+GIT_BRANCH                              := $(shell git rev-parse --abbrev-ref HEAD 2>/dev/null || echo $(PROJECT_NAME))
 export GIT_BRANCH
-GIT_HASH								:= $(shell git rev-parse --short HEAD 2>/dev/null || echo $(PROJECT_NAME))
+GIT_HASH                                := $(shell git rev-parse --short HEAD 2>/dev/null || echo $(PROJECT_NAME))
 export GIT_HASH
-GIT_PREVIOUS_HASH						:= $(shell git rev-parse --short master@{1} 2>/dev/null || echo $(PROJECT_NAME))
+GIT_PREVIOUS_HASH                       := $(shell git rev-parse --short master@{1} 2>/dev/null || echo $(PROJECT_NAME))
 export GIT_PREVIOUS_HASH
-GIT_REPO_ORIGIN							:= $(shell git remote get-url origin 2>/dev/null || echo $(PROJECT_NAME))
+GIT_REPO_ORIGIN                         := $(shell git remote get-url origin 2>/dev/null || echo $(PROJECT_NAME))
 export GIT_REPO_ORIGIN
-GIT_REPO_NAME							:= $(PROJECT_NAME)
+GIT_REPO_NAME                           := $(PROJECT_NAME)
 export GIT_REPO_NAME
-GIT_REPO_PATH							:= $(HOME)/$(GIT_REPO_NAME)
+GIT_REPO_PATH                           := $(HOME)/$(GIT_REPO_NAME)
 export GIT_REPO_PATH
 
-BASENAME := $(shell basename -s .git `git config --get remote.origin.url` || echo $(PROJECT_NAME))
-export BASENAME
-
-NODE_VERSION                           :=v16.19.1
+NODE_VERSION                            :=v16.14.2
 export NODE_VERSION
-NODE_ALIAS                             :=v16.19.0
+NODE_ALIAS                              :=v16.14.0
 export NODE_ALIAS
-NVM_DIR                                :=$(HOME)/.nvm
+NVM_DIR                                 :=$(HOME)/.nvm
 export NVM_DIR
-PACKAGE_MANAGER                        :=yarn
-export PACKAGE_MANAGER
-PACKAGE_INSTALL                        :=add
-export PACKAGE_INSTALL
+PNPM_VERSION                            :=8.6.7
+export PNPM_VERSION
 
-
-# Force the user to explicitly select public - public=true
-# export KB_PUBLIC=public && make keybase-public
-ifeq ($(public),true)
-KB_PUBLIC  := public
-else
-KB_PUBLIC  := private
-endif
-export KB_PUBLIC
-
-ifeq ($(libs),)
-LIBS  := ./libs
-else
-LIBS  := $(libs)
-endif
-export LIBS
-
-SPHINXOPTS            =
-SPHINXBUILD           = sphinx-build
-PAPER                 =
-BUILDDIR              = _build
-PRIVATE_BUILDDIR      = _private_build
-
-# Internal variables.
-PAPEROPT_a4           = -D latex_paper_size=a4
-PAPEROPT_letter       = -D latex_paper_size=letter
-ALLSPHINXOPTS         = -d $(BUILDDIR)/doctrees $(PAPEROPT_$(PAPER)) $(SPHINXOPTS) .
-PRIVATE_ALLSPHINXOPTS = -d $(PRIVATE_BUILDDIR)/doctrees $(PAPEROPT_$(PAPER)) $(SPHINXOPTS) .
-# the i18n builder cannot share the environment and doctrees with the others
-I18NSPHINXOPTS  = $(PAPEROPT_$(PAPER)) $(SPHINXOPTS) .
+#PACKAGE_MANAGER                         :=yarn
+#export PACKAGE_MANAGER
+#PACKAGE_INSTALL                         :=add
+#export PACKAGE_INSTALL
 
 -:
-	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?##/ {printf "\033[36m%-15s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
+	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "\033[36m%-15s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
+## help
 
 .PHONY: init
 .ONESHELL:
-init:## 	
 	@touch requirements.txt
-	$(PYTHON3) -m pip install $(USER_FLAG) --upgrade pip
-	$(PYTHON3) -m pip install $(USER_FLAG) -r requirements.txt
+init:initialize venv##	initialize venv
+## init
+	@echo $(PYTHON)
+	@echo $(PYTHON2)
+	@echo $(PYTHON3)
+	@echo $(PIP)
+	@echo $(PIP2)
+	@echo $(PIP3)
+	@echo PATH=$(PATH):/usr/local/opt/python@3.10/Frameworks/Python.framework/Versions/3.10/bin
+	@echo PATH=$(PATH):$(HOME)/Library/Python/3.10/bin
+	test -d .venv || $(PYTHON3) -m virtualenv .venv
+	( \
+	   source .venv/bin/activate; $(PIP) install -q -r requirements.txt; \
+	   $(PYTHON3) -m $(PIP) install $(USER_FLAG) --upgrade pip; \
+	   $(PYTHON3) -m $(PIP) install $(USER_FLAG) -r requirements.txt; \
+	   $(PIP) install -q --upgrade pip; \
+	);
+	( \
+	    while ! docker system info > /dev/null 2>&1; do\
+	    echo 'Waiting for docker to start...';\
+	    if [[ '$(OS)' == 'Linux' ]]; then\
+	     type -P systemctl && systemctl restart docker.service || type -P apk && apk add openrc docker && rc-service docker restart;\
+	    fi;\
+	    if [[ '$(OS)' == 'Darwin' ]]; then\
+	     open --background -a /./Applications/Docker.app/Contents/MacOS/Docker;\
+	    fi;\
+	sleep 1;\
+	done\
+	)
+	@bash -c ". .venv/bin/activate &"
+
 help:## 	verbose help
-	@echo verbose $@
-	@sed -n 's/^##//p' ${MAKEFILE_LIST} | column -t -s ':' |  sed -e 's/^/ /'
-report:
+	@sed -n 's/^## //p' ${MAKEFILE_LIST} | column -t -s ':' |  sed -e 's/^/ /'
+
+pnpm:nvm
+	npm i --global @adonisjs/cli
+	npm i --global @adonisjs/core
+	curl -fsSL https://get.pnpm.io/install.sh | env PNPM_VERSION=$(PNPM_VERSION) sh - && \
+    pnpm run dev &
+run:pnpm## 	node-proxy
+.PHONY: report
+report:## 	report
+## report
 	@echo ''
 	@echo '[ENV VARIABLES]	'
 	@echo ''
 	@echo 'TIME=${TIME}'
 	@echo 'BASENAME=${BASENAME}'
 	@echo 'PROJECT_NAME=${PROJECT_NAME}'
+	@echo ''
+	@echo 'PYTHON_ENV=${PYTHON_ENV}'
+	@echo 'PYTHON3_ENV=${PYTHON3_ENV}'
+	@echo ''
 	@echo 'PYTHON_VENV=${PYTHON_VENV}'
 	@echo 'PYTHON3_VENV=${PYTHON3_VENV}'
 	@echo ''
-	@echo 'NODE_VERSION=${NODE_VERSION}	'
-	@echo 'NODE_ALIAS=${NODE_ALIAS}	'
+	@echo 'PYTHON=${PYTHON}'
+	@echo 'PIP=${PIP}'
+	@echo 'PYTHON2=${PYTHON2}'
+	@echo 'PIP2=${PIP2}'
+	@echo 'PYTHON3=${PYTHON3}'
+	@echo 'PIP3=${PIP3}'
+	@echo ''
+	@echo 'NODE_VERSION=${NODE_VERSION}'
+	@echo 'NODE_ALIAS=${NODE_ALIAS}'
+	@echo 'PNPM_VERSION=${PNPM_VERSION}'
 	@echo ''
 	@echo 'HOMEBREW=${HOMEBREW}'
 	@echo ''
 	@echo 'GIT_USER_NAME=${GIT_USER_NAME}'
 	@echo 'GH_USER_REPO=${GH_USER_REPO}'
 	@echo 'GH_USER_SPECIAL_REPO=${GH_USER_SPECIAL_REPO}'
-	@echo 'KB_USER_REPO=${KB_USER_REPO}'
 	@echo 'GIT_USER_EMAIL=${GIT_USER_EMAIL}'
 	@echo 'GIT_SERVER=${GIT_SERVER}'
 	@echo 'GIT_PROFILE=${GIT_PROFILE}'
@@ -218,111 +216,80 @@ report:
 	@echo 'GIT_REPO_PATH=${GIT_REPO_PATH}'
 
 .PHONY: super
+.ONESHELL:
 super:
 ifneq ($(shell id -u),0)
+	@echo switch to superuser
+	@echo cd $(TARGET_DIR)
 	sudo -s
 endif
 
-checkbrew:## 	checkbrew
+checkbrew:##
+## checkbrew
 ifeq ($(HOMEBREW),)
-	@/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+	@/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" && $(MAKE) success || $(MAKE) failure
 else
-	@type -P brew
+	@type -P brew && $(MAKE) success || $(MAKE) failure
 endif
 
-submodules: checkbrew## 	submodules
-	@git submodule update --init --recursive
-#	@git submodule foreach --recursive "git submodule update --init --recursive"
+submodules:## 	submodules
+## submodules
+	git submodule update --init --recursive
+	git submodule foreach --recursive "git submodule update --init; git fetch --all --tags"
 
-.PHONY: nvm
 .ONESHELL:
-nvm: ## 	nvm
-	@curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/master/install.sh | bash || git pull -C $(HOME)/.nvm && export NVM_DIR="$(HOME)/.nvm" && [ -s "$(NVM_DIR)/nvm.sh" ] && \. "$(NVM_DIR)/nvm.sh" && [ -s "$(NVM_DIR)/bash_completion" ] && \. "$(NVM_DIR)/bash_completion"  && nvm install $(NODE_VERSION) && nvm use $(NODE_VERSION)
-	@source ~/.bashrc && nvm alias $(NODE_ALIAS) $(NODE_VERSION)
-
-tag:
-	@git tag $(OS)-$(OS_VERSION)-$(ARCH)-$(shell date +%s)
-	@git push -f --tags
-
-nvm-clean: ## 	nvm-clean
-	@rm -rf ~/.nvm
-
-.PHONY: serve
-.ONESHELL:
-serve:## 	serve
-	bash -c "$(PYTHON3) -m http.server $(PORT) -d . &"
-
-#######################
-.ONESHELL:
-docker-start:## 	start docker
-	@touch requirements.txt
-	@$(PYTHON3) -m pip install -U -q -r requirements.txt 2>/dev/null
+docker-start:
+## docker-start
+	touch requirements.txt && $(PYTHON3) -m ensurepip && $(PYTHON3) -m pip install -q -r requirements.txt
 	test -d .venv || $(PYTHON3) -m virtualenv .venv
 	( \
-	   source .venv/bin/activate; pip install -q -r requirements.txt; \
-	   python3 -m pip install -q omegaconf \
-	   pip install -q --upgrade pip; \
+	   source .venv/bin/activate; $(PYTHON3) -m pip install -q -r requirements.txt; \
+	   $(PYTHON3) -m pip install -q --upgrade pip; \
 	);
 	( \
 	    while ! docker system info > /dev/null 2>&1; do\
 	    echo 'Waiting for docker to start...';\
 	    if [[ '$(OS)' == 'Linux' ]]; then\
-	     systemctl restart docker.service;\
+	    type -P apt && apt install docker*;\
+	    type -P systemctl && systemctl restart docker.service || type -P service && service docker.service restart || type -P apk &&  apk add openrc docker && rc-service docker restart || echo "try installing docker manually...";\
 	    fi;\
 	    if [[ '$(OS)' == 'Darwin' ]]; then\
 	     open --background -a /./Applications/Docker.app/Contents/MacOS/Docker;\
 	    fi;\
 	sleep 1;\
+	docker pull catthehacker/ubuntu:act-latest;\
 	done\
 	)
 
-docker-install:## 	Download Docker.amd64.93002.dmg for MacOS Intel Compatibility
+initialize:## 	initialize
+## initialize
+	@[[ '$(shell uname -m)' == 'x86_64' ]] && [[ '$(shell uname -s)' == 'Darwin' ]] && echo "is_Darwin/x86_64" || echo "not_Darwin/x86_64"
+	@[[ '$(shell uname -m)' == 'x86_64' ]] && [[ '$(shell uname -s)' == 'Linux' ]] && echo "is_Linux/x86_64" || echo "not_Linux/x86_64"
 
-	@[[ '$(shell uname -s)' == 'Darwin' ]] && echo "is Darwin" || echo "not Darwin";
-	@[[ '$(shell uname -m)' == 'x86_64' ]] && echo "is x86_64" || echo "not x86_64";
-	@[[ '$(shell uname -p)' == 'i386' ]]   && echo "is i386" || echo "not i386";
-	@[[ '$(shell uname -s)' == 'Darwin' ]] && [[ '$(shell uname -m)' == 'x86_64' ]]   && echo "is Darwin AND x86_64"     || echo "not Darwin AND x86_64";
-	@[[ '$(shell uname -s)' == 'Darwin' ]] && [[ ! '$(shell uname -m)' == 'x86_64' ]] && echo "is Darwin AND NOT x86_64" || echo "is NOT (Darwin AND NOT x86_64)";
+failure:
+	@-/usr/bin/false && ([ $$? -eq 0 ] && echo "success!") || echo "failure!"
+success:
+	@-/usr/bin/true && ([ $$? -eq 0 ] && echo "success!") || echo "failure!"
 
-	#@[[ '$(shell uname -s)' != 'Darwin' ]] && echo "not Darwin" || echo "is Darwin";
-	#@[[ '$(shell uname -m)' != 'x86_64' ]] && echo "not x86_64" || echo "is x86_64";
-	#@[[ '$(shell uname -p)' != 'i386' ]]   && echo "not i386" || echo "is i386";
+.PHONY: nvm
+.ONESHELL:
+nvm: ## 	nvm
+	@curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/master/install.sh | bash || git pull -C $(HOME)/.nvm && export NVM_DIR="$(HOME)/.nvm" && [ -s "$(NVM_DIR)/nvm.sh" ] && \. "$(NVM_DIR)/nvm.sh" && [ -s "$(NVM_DIR)/bash_completion" ] && \. "$(NVM_DIR)/bash_completion"  && nvm install $(NODE_VERSION) && nvm use $(NODE_VERSION)
+	@source ~/.bashrc && nvm alias $(NODE_ALIAS) $(NODE_VERSION) &
 
-	@[[ '$(shell uname -s)' == 'Darwin'* ]] && sudo -S chown -R $(shell whoami):admin /Users/$(shell whoami)/.docker/buildx/current || echo
-	@[[ '$(shell uname -s)' == 'Darwin'* ]] && echo "Install Docker.amd64.93002.dmg if MacOS Catalina - known compatible version!"
-	@[[ '$(shell uname -s)' == 'Darwin'* ]] && curl -o Docker.amd64.93002.dmg -C - https://desktop.docker.com/mac/main/amd64/93002/Docker.dmg
-	@[[ '$(shell uname -s)' == 'Darwin'* ]] && echo "Using: $(shell type -P openssl)"
-	@[[ '$(shell uname -s)' == 'Darwin'* ]] && openssl dgst -sha256 -r Docker.amd64.93002.dmg | sed 's/*Docker.amd64.93002.dmg//'
-	@[[ '$(shell uname -s)' == 'Darwin'* ]] && echo "Using: $(shell type -P sha256sum)"
-	@[[ '$(shell uname -s)' == 'Darwin'* ]] && sha256sum               Docker.amd64.93002.dmg | sed 's/Docker.amd64.93002.dmg//'
-	@[[ '$(shell uname -s)' == 'Darwin'* ]] && echo "Expected hash:"
-	@[[ '$(shell uname -s)' == 'Darwin'* ]] && echo "bee41d646916e579b16b7fae014e2fb5e5e7b5dbaf7c1949821fd311d3ce430b"
-	@[[ '$(shell uname -s)' == 'Darwin'* ]] && type -P open 2>/dev/null && open Docker.amd64.93002.dmg
+clean-nvm: ## 	clean-nvm
+	@rm -rf ~/.nvm
 
-.PHONY: venv
-venv:## 	create python3 virtualenv .venv
-	@touch requirements.txt
-	@$(PYTHON3) -m pip install -U -q -r requirements.txt 2>/dev/null
-	test -d .venv || $(PYTHON3) -m virtualenv .venv
-	( \
-	   source .venv/bin/activate; pip install -q -r requirements.txt; \
-	   python3 -m pip install -q omegaconf \
-	   pip install -q --upgrade pip; \
-	);
-	@echo "To activate (venv)"
-	@echo "try:"
-	@echo ". .venv/bin/activate"
-	@echo "or:"
-	@echo "make test-venv"
-##:	test-venv            source .venv/bin/activate; pip install -r requirements.txt;
-test-venv:## 	test virutalenv .venv
-	# insert test commands here
-	test -d .venv || $(PYTHON3) -m virtualenv .venv
-	( \
-	   source .venv/bin/activate; pip install -q -r requirements.txt; \
-	   python3 -m pip install -q omegaconf \
-	   pip install -q --upgrade pip; \
-	);
+clean:## 	clean
+	@git clean -xfd && git submodule foreach --recursive git clean -xfd && git reset --hard && git submodule foreach --recursive git reset --hard && git submodule update --init --recursive
+
+tag:
+	@git tag $(OS)-$(OS_VERSION)-$(ARCH)-$(shell date +%s)
+	@git push -f --tags || echo "unable to push tags..."
 
 -include Makefile
+-include venv.mk
 -include act.mk
+
+# vim: set noexpandtab
+# vim: set setfiletype make
